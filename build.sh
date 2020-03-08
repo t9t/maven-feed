@@ -17,5 +17,6 @@ else
 fi
 
 TAG_NAME=${GIT_HASH}${SUFFIX}
+BUILD_TIME=$(TZ=UTC date -Iseconds)
 
-docker build --no-cache -t maven-feed:${TAG_NAME} -t maven-feed:latest .
+docker build --no-cache --build-arg COMMIT_HASH="${TAG_NAME}" --build-arg BUILD_TIME="${BUILD_TIME}" -t maven-feed:${TAG_NAME} -t maven-feed:latest .

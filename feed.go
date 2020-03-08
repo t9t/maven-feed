@@ -19,6 +19,8 @@ var (
 	debugEnabled = false
 	selfUrl      = ""
 	maxResults   = 20
+	commitHash   = "dev"
+	buildTime    = "N/A"
 )
 
 var artifactSpecs []ArtifactSpec
@@ -43,7 +45,7 @@ func main() {
 	http.HandleFunc("/json", jsonFeed)
 
 	hostAndPort := bindHost + ":" + bindPort
-	log.Println("Listening on " + hostAndPort)
+	log.Printf("Starting maven-feed %s (built: %s) on %s\n", commitHash, buildTime, hostAndPort)
 	log.Fatal(http.ListenAndServe(hostAndPort, nil))
 }
 
