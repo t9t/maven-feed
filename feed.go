@@ -79,7 +79,7 @@ func parseArtifactSpecs(s string) ([]ArtifactSpec, error) {
 }
 
 func rss(w http.ResponseWriter, r *http.Request) {
-	produceFeed(w, r, false, "application/rss+xml", (*feeds.Feed).ToRss)
+	produceFeed(w, r, false, "text/xml; charset=UTF-8", (*feeds.Feed).ToRss)
 }
 
 func atom(w http.ResponseWriter, r *http.Request) {
