@@ -2,30 +2,78 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/gorilla/feeds"
 )
 
 var (
-	debugEnabled = true
-	author       = "me myself and i"
-	selfUrl      = "http://localhost:8080"
+	debugEnabled = false
+	selfUrl      = ""
+	maxResults   = 20
 )
 
-// TODO: bind host and port
+var artifactSpecs []ArtifactSpec
+
 func main() {
+	bindHost := envOrDefault("BIND_HOST", "0.0.0.0")
+	bindPort := envOrDefault("BIND_PORT", "8080")
+	artifactSpecsString := mustEnv("ARTIFACTS")
+	selfUrl = mustEnv("SELF_URL")
+	debugEnabled = os.Getenv("DEBUG_ENABLED") == "true"
+
+	var err error
+	artifactSpecs, err = parseArtifactSpecs(artifactSpecsString)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	logDebug("Parsed artifact specs: %+v\n", artifactSpecs)
+
 	http.HandleFunc("/rss", rss)
 	http.HandleFunc("/atom", atom)
 	http.HandleFunc("/json", jsonFeed)
 
-	log.Println("Going to listen on port :8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	hostAndPort := bindHost + ":" + bindPort
+	log.Println("Listening on " + hostAndPort)
+	log.Fatal(http.ListenAndServe(hostAndPort, nil))
+}
+
+func mustEnv(key string) string {
+	v := os.Getenv(key)
+	if v == "" {
+		log.Fatalf("Environment variable %s not set or empty", key)
+	}
+	return v
+}
+
+func envOrDefault(key string, def string) string {
+	v := os.Getenv(key)
+	if v == "" {
+		return def
+	}
+	return v
+}
+
+func parseArtifactSpecs(s string) ([]ArtifactSpec, error) {
+	items := strings.Split(s, "|")
+	r := make([]ArtifactSpec, len(items))
+	for i, item := range items {
+		groupAndArtifact := strings.Split(item, ":")
+		if len(groupAndArtifact) != 2 {
+			return nil, errors.New("invalid artifact specification format")
+		}
+		r[i] = ArtifactSpec{Group: groupAndArtifact[0], Name: groupAndArtifact[1]}
+	}
+	return r, nil
 }
 
 func rss(w http.ResponseWriter, r *http.Request) {
@@ -41,7 +89,7 @@ func jsonFeed(w http.ResponseWriter, r *http.Request) {
 }
 
 func produceFeed(w http.ResponseWriter, r *http.Request, includeAuthor bool, contentType string, toFeedFunc func(*feeds.Feed) (string, error)) {
-	artifacts, err := fetchArtifacts("org.jooq", "jooq", 3)
+	artifacts, err := downloadAllArtifacts()
 	if err != nil {
 		log.Printf("Error fetching artifacts: %v\n", err)
 		writeError(w)
@@ -66,6 +114,18 @@ func produceFeed(w http.ResponseWriter, r *http.Request, includeAuthor bool, con
 	}
 	w.Header().Set("Content-Type", contentType)
 	fmt.Fprint(w, output)
+}
+
+func downloadAllArtifacts() ([]Artifact, error) {
+	r := make([]Artifact, 0)
+	for _, spec := range artifactSpecs {
+		artifacts, err := fetchArtifacts(spec.Group, spec.Name, maxResults)
+		if err != nil {
+			return nil, err
+		}
+		r = append(r, artifacts...)
+	}
+	return r, nil
 }
 
 func writeError(w http.ResponseWriter) {
@@ -154,4 +214,9 @@ type Artifact struct {
 	Name      string `json:"a"`
 	Version   string `json:"v"`
 	Timestamp int64  `json:"timestamp"`
+}
+
+type ArtifactSpec struct {
+	Group string
+	Name  string
 }
