@@ -8,5 +8,5 @@ RUN CGOENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o ./maven-feed.bin -tags n
 FROM scratch
 
 CMD ["/maven-feed"]
-
+COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=build /sources/maven-feed.bin /maven-feed

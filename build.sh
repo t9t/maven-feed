@@ -18,4 +18,4 @@ fi
 
 TAG_NAME=${GIT_HASH}${SUFFIX}
 
-docker build --no-cache -t maven-feed:${TAG_NAME} .
+docker build --no-cache -t maven-feed:${TAG_NAME} -t maven-feed:latest .
